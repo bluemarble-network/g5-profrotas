@@ -35,12 +35,11 @@ export async function insertOrUpdatetoQuery (knex: any, tableName: string, data:
 }
 
 interface iLogDB {
-  programacao?: string
-  obs?: string
+  obs: string
   qtdRetornada?: number
   qtdInserida?: number
 }
 
 export async function logDB (dadosLog: iLogDB) {
-  return await queryBuilder('appa_log').insert(dadosLog)
+  return await queryBuilder('profrotas_log').insert(dadosLog)
 }

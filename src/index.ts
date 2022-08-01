@@ -6,8 +6,11 @@ import { api, apiFrota } from './api/axios'
 import 'dotenv/config'
 import { autenticaFrota, setTokenFixo } from './api/autenticaFrota'
 import { autentica } from './api/autentica'
-export const EsperaEntreConsultas = 1000 * 60 * 1 // 1 min
-// export const EsperaEntreConsultas = 1000 * 2 // 10 seg para testar em DEV
+import { logDB } from './utils/knex'
+import moment from 'moment'
+import { abastecimentos } from './insertAbastecimentos'
+export const EsperaEntreConsultas = 1000 * 4 // 4 seg
+export const IntervaloConsulta = 1000 * 60 * 12 // 12 horas
 const app = express()
 app.use(cors())
 app.use(express.json({ limit: '50mb' }))
@@ -17,29 +20,20 @@ const port = process.env.PORT || 3333
 app.listen(port, async function () {
   const msg = `Start G5 Profrotas http://${ip.address()}:${port}`
   console.log(msg)
-  console.log('teste_asdf')
   // sendTelegram(msg)
-  // await logDB({ imo: '-', datas: msg, aplicacao: 'Profrotas' })
-  // await autentica(api)
-  // await autenticaFrota(apiFrota)
-  await setTokenFixo(apiFrota)
-  // const retorno = await apiFrota.post('/api/frotista/motorista/pesquisa', {
-  //   cpf: 43223281487
-  // })
-  //   paginacao: { pagina: 1, tamanhoPagina: 25, parametrosOrdenacaoColuna: [{ nome: 'nome', decrescente: false }] },
-  //   vencimentoCNH: { name: null, label: 'Todos' },
-  //   unidade: { id: null, nome: 'Todas' },
-  //   grupo: { id: null, grupoOperacionalFormatado: 'Todos' },
-  //   status: { name: 'ATIVO' },
-  //   empresaAgregada: { id: null, razaoSocial: 'Todas' },
-  //   classificacao: { name: null, label: 'Todos' }
-  // })
-  // console.log(retorno.data)
-
-  // await getCookie(api)
-  // await pesagens1HoraAtras()
-  // await delay(EsperaEntreConsultas)
-  // await verificaDiferenca()
-
-  // await pesagensTotaisPorImo() // Só para testes, deixar só este DEV
+  await logDB({ obs: msg })
+  await autentica(api)
+  await autenticaFrota(apiFrota)
+  // await setTokenFixo(apiFrota)
+  const data24horasAtras = moment().subtract(24, 'hours').toDate()
+  const dataAgora = moment().toDate()
+  await abastecimentos(data24horasAtras, dataAgora)
 })
+
+setInterval(async () => {
+  await logDB({ obs: 'IntervaloConsulta' })
+  const data24horasAtras = moment().subtract(24, 'hours').toDate()
+  const dataAgora = moment().toDate()
+  await abastecimentos(data24horasAtras, dataAgora)
+  console.log(IntervaloConsulta)
+}, IntervaloConsulta)
