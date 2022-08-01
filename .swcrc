@@ -1,0 +1,18 @@
+{
+    "jsc": {
+      "externalHelpers": false,
+      "parser": {
+        "syntax": "typescript",
+        "decoradors": true,
+        "dynamicImport": true
+      }
+    },
+    "env": {
+      "targets": {
+        "node": 16
+      }
+    },
+    "module": {
+        "type": "commonjs"
+    }
+  }
