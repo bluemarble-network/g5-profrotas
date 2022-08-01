@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      # - name: Setup Nodejs
+      #   uses: actions/setup-node@v2
+      #   with:
+      #     node-version: 14.x
+      # - name: Install Dependencies
+      #   run: yarn
+      # - name: Build1
+      #   run: yarn build
+      - name: Copy file via ssh to EC2
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          source: "., !node_modules"
+          target: "/var/www/g5-profrotas.bluemarble.com.br/g5-profrotas"
+      - name: Update API
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            export NVM_DIR=~/.nvm
+            source ~/.nvm/nvm.sh
+            cd /var/www/g5-profrotas.bluemarble.com.br/g5-profrotas
+            pm2 stop g5-profrotas
+            yarn install
+            yarn build
+            pm2 start ./dist/index.js --name "g5-profrotas"
+            pm2 save
+          # pm2 restart g5-profrotas
