@@ -23,8 +23,87 @@ export async function insertAbastecimentos (req: Request, res: Response): Promis
     await logDB({ obs: error.message as string })
     return res.json(error.response.data)
   }
+}
 
-  // return res.json(data)
+interface itemsProps {
+  identificador: string
+nome: string
+tipo: { codigo:number, valor:string}
+quantidade: number
+valorUnitario: number
+valorTotal: number
+}
+
+interface veiculoProps {
+identificador: number
+placa: string
+tipo: { codigo:number, valor:string}
+subtipo: { codigo:number, valor:string}
+marca: string
+modelo: string
+anoModelo: number
+anoFabricao: number
+agregado: boolean
+unidade:string
+grupoOperacional: string
+empresaAgregada: string
+}
+
+interface frotaProps {
+  cnpj: number
+  razaoSocial: string
+}
+interface motoristaProps {
+  cpf: number
+  nome: string | null
+  agregado: string | null
+  unidade: boolean
+  grupoOperacional: string | null
+  empresaAgregada: string | null
+}
+
+interface registroProps {
+  identificador: number
+  abastecimentoEstornado: number
+  data: string
+  dataAtualizacao: string
+  statusEdicao: number
+  dataTransacao: string
+  statusAutorizacao: number
+  motivoRecusa: string
+  motivoCancelamento: null,
+  hodometro: number
+  horimetro: number
+  frota: frotaProps
+  motorista: motoristaProps
+  veiculo: veiculoProps
+  pontoVenda: pontoVendaProps
+  items: [itemsProps]
+}
+
+interface retornoGeralProps {
+  totalItems: number
+  registros: [any]
+  observacoes: string | null
+  pagina: number
+  tamanhoPagina: number
+}
+
+interface pontoVendaProps {
+  cnpj: number
+  razaoSocial: string
+  postoInterno: boolean
+  endereco: {
+    cep: number
+    logradouro:string
+    numero: number
+    complemento:string
+    bairro:string
+    municipio:string
+    uf:string
+    latitude: number
+    longitude:number
+  }
 }
 
 export async function abastecimentos (dataInicialDate: Date, dataFinalDate : Date) {
@@ -33,14 +112,15 @@ export async function abastecimentos (dataInicialDate: Date, dataFinalDate : Dat
   await logDB({ obs: `abast. inicial:${dataInicial}, final:${dataFinal}` })
 
   let pagina = 1
-  const { data } = await apiFrota.post('/api/frotista/abastecimento/pesquisa', {
+  const { data } = await apiFrota.post<retornoGeralProps>('/api/frotista/abastecimento/pesquisa', {
     dataInicial,
     dataFinal,
     pagina
   })
+
   let totalRegistros = data.registros.length
   const tamanhoPagina = data.tamanhoPagina
-  let dadosTotais = data.registros
+  let dadosTotais :registroProps[] = data.registros
 
   while (totalRegistros === tamanhoPagina) {
     pagina++
@@ -56,7 +136,7 @@ export async function abastecimentos (dataInicialDate: Date, dataFinalDate : Dat
   }
   // return res.json(dadosTotais)
 
-  const dadosFormatados = dadosTotais.map((item:any) => ({
+  const dadosFormatados = dadosTotais.map((item) => ({
     identificador: item.identificador,
     abastecimentoEstornado: item.abastecimentoEstornado,
     data: item.data,
@@ -74,6 +154,7 @@ export async function abastecimentos (dataInicialDate: Date, dataFinalDate : Dat
 
   const retornoInsert = []
   retornoInsert.push(await insertOrUpdate(queryBuilder, 'profrotas_abastecimentos', dadosFormatados))
+
   await logDB({ obs: 'profrotas_abastecimentos', qtdInserida: dadosFormatados.length })
 
   const dadosFormatadosItens = []
@@ -95,5 +176,49 @@ export async function abastecimentos (dataInicialDate: Date, dataFinalDate : Dat
 
   retornoInsert.push(await insertOrUpdate(queryBuilder, 'profrotas_abastecimentos_itens', dadosFormatadosItens))
   await logDB({ obs: 'profrotas_abastecimentos_itens', qtdInserida: dadosFormatadosItens.length })
+
+  const pontoVendaCnpjPossiveis = [...new Set(data.registros.map((item: registroProps) => String(item.pontoVenda.cnpj)))]
+  const pontoVendaCnpjCadastrados = await queryBuilder('profrotas_ponto_venda').select(['cnpj']).whereIn('cnpj', pontoVendaCnpjPossiveis)
+  const pontoVendaCnpjCadastradosArr = pontoVendaCnpjCadastrados.map(item => item.cnpj)
+  const pontoVendaCnpjParaIncluir = pontoVendaCnpjPossiveis.filter(item => !pontoVendaCnpjCadastradosArr.includes(item))
+  if (pontoVendaCnpjParaIncluir.length > 0) {
+    const insertItens : pontoVendaProps[] = []
+    for (const pontoVenda of pontoVendaCnpjParaIncluir) {
+      insertItens.push({ ...data.registros.find((item: registroProps) => String(item.pontoVenda.cnpj) === pontoVenda).pontoVenda })
+    }
+    const insertFormatadado = insertItens.map(item => ({
+      cnpj: item.cnpj,
+      razaoSocial: item.razaoSocial,
+      postoInterno: item.postoInterno,
+      cep: item.endereco.cep,
+      logradouro: item.endereco.logradouro,
+      numero: item.endereco.numero,
+      complemento: item.endereco.complemento,
+      bairro: item.endereco.bairro,
+      municipio: item.endereco.municipio,
+      uf: item.endereco.uf,
+      latitude: item.endereco.latitude,
+      longitude: item.endereco.longitude
+    }))
+    retornoInsert.push(await insertOrUpdate(queryBuilder, 'profrotas_ponto_venda', insertFormatadado))
+  }
+
   return retornoInsert
+
+  // "pontoVenda": {
+  //   "cnpj": 20415295001901,
+  //   "razaoSocial": "Rede Dom Pedro De Postos Ltda.",
+  //   "postoInterno": false,
+  //   "endereco": {
+  //   "cep": 35540000,
+  //   "logradouro": "Rodovia Br 381",
+  //   "numero": 0,
+  //   "complemento": "611",
+  //   "bairro": "D.I.David Matar Ii",
+  //   "municipio": "Oliveira",
+  //   "uf": "MG",
+  //   "latitude": -20.68374634,
+  //   "longitude": -44.73849106
+  //   }
+  //   }
 }
