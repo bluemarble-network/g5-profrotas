@@ -25,10 +25,15 @@ app.listen(port, async function () {
   await autentica(api)
   await autenticaFrota(apiFrota)
   // await setTokenFixo(apiFrota)
-  // const data24horasAtras = moment().subtract(24, 'hours').toDate()
-  const data2MesesAtras = moment().subtract(2, 'months').toDate()
+  const dataAnterior = moment().subtract(24, 'hours').toDate()
   const dataAgora = moment().toDate()
-  await abastecimentos(data2MesesAtras, dataAgora)
+  // const dataAnterior = moment().subtract(2, 'months').toDate()
+  // const dataAnterior = moment('2021-11-01 00:00:00').toDate()
+  // const dataAgora = moment('2022-01-01 00:00:00').toDate()
+
+  // console.log(dataAnterior)
+  // console.log(dataAgora)
+  await abastecimentos(dataAnterior, dataAgora)
 })
 
 setInterval(async () => {

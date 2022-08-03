@@ -3,7 +3,7 @@ import moment from 'moment'
 import { EsperaEntreConsultas } from '.'
 import { apiFrota } from './api/axios'
 import { insertOrUpdate, logDB, queryBuilder } from './utils/knex'
-import { delay } from './utils/utils'
+import { delay, sendTelegram } from './utils/utils'
 
 export async function insertAbastecimentos (req: Request, res: Response): Promise<Response> {
   // período entre às duas não deve ser maior 2 meses
@@ -21,6 +21,7 @@ export async function insertAbastecimentos (req: Request, res: Response): Promis
     console.log(error.message)
     console.log(error.response.data)
     await logDB({ obs: error.message as string })
+    await sendTelegram('G5 profrotas: ' + error.message)
     return res.json(error.response.data)
   }
 }
@@ -153,7 +154,9 @@ export async function abastecimentos (dataInicialDate: Date, dataFinalDate : Dat
   }))
 
   const retornoInsert = []
-  retornoInsert.push(await insertOrUpdate(queryBuilder, 'profrotas_abastecimentos', dadosFormatados))
+  if (dadosFormatados.length > 0) {
+    retornoInsert.push(await insertOrUpdate(queryBuilder, 'profrotas_abastecimentos', dadosFormatados))
+  }
 
   await logDB({ obs: 'profrotas_abastecimentos', qtdInserida: dadosFormatados.length })
 
@@ -174,7 +177,9 @@ export async function abastecimentos (dataInicialDate: Date, dataFinalDate : Dat
     }
   }
 
-  retornoInsert.push(await insertOrUpdate(queryBuilder, 'profrotas_abastecimentos_itens', dadosFormatadosItens))
+  if (dadosFormatadosItens.length > 0) {
+    retornoInsert.push(await insertOrUpdate(queryBuilder, 'profrotas_abastecimentos_itens', dadosFormatadosItens))
+  }
   await logDB({ obs: 'profrotas_abastecimentos_itens', qtdInserida: dadosFormatadosItens.length })
 
   const pontoVendaCnpjPossiveis = [...new Set(data.registros.map((item: registroProps) => String(item.pontoVenda.cnpj)))]
@@ -200,7 +205,9 @@ export async function abastecimentos (dataInicialDate: Date, dataFinalDate : Dat
       latitude: item.endereco.latitude,
       longitude: item.endereco.longitude
     }))
-    retornoInsert.push(await insertOrUpdate(queryBuilder, 'profrotas_ponto_venda', insertFormatadado))
+    if (insertFormatadado.length > 0) {
+      retornoInsert.push(await insertOrUpdate(queryBuilder, 'profrotas_ponto_venda', insertFormatadado))
+    }
   }
 
   return retornoInsert
