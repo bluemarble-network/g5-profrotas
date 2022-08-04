@@ -28,26 +28,26 @@ export async function insertAbastecimentos (req: Request, res: Response): Promis
 
 interface itemsProps {
   identificador: string
-nome: string
-tipo: { codigo:number, valor:string}
-quantidade: number
-valorUnitario: number
-valorTotal: number
+  nome: string
+  tipo: { codigo:number, valor:string}
+  quantidade: number
+  valorUnitario: number
+  valorTotal: number
 }
 
 interface veiculoProps {
-identificador: number
-placa: string
-tipo: { codigo:number, valor:string}
-subtipo: { codigo:number, valor:string}
-marca: string
-modelo: string
-anoModelo: number
-anoFabricao: number
-agregado: boolean
-unidade:string
-grupoOperacional: string
-empresaAgregada: string
+  identificador: number
+  placa: string
+  tipo: { codigo:number, valor:string}
+  subtipo: { codigo:number, valor:string}
+  marca: string
+  modelo: string
+  anoModelo: number
+  anoFabricao: number
+  agregado: boolean
+  unidade:string
+  grupoOperacional: string
+  empresaAgregada: string
 }
 
 interface frotaProps {
@@ -84,7 +84,7 @@ interface registroProps {
 
 interface retornoGeralProps {
   totalItems: number
-  registros: [any]
+  registros: [registroProps]
   observacoes: string | null
   pagina: number
   tamanhoPagina: number
@@ -107,37 +107,70 @@ interface pontoVendaProps {
   }
 }
 
+export async function abastecimentosTotais (dataInicial:string, dataFinal:string) {
+  let pagina = 1
+  let totalRegistros = 0
+  let tamanhoPagina = 0
+  let registrosTotais
+
+  console.log(dataInicial, dataFinal)
+  try {
+    const { data } = await apiFrota.post<retornoGeralProps>('/api/frotista/abastecimento/pesquisa', {
+      dataInicial,
+      dataFinal,
+      pagina
+    })
+
+    totalRegistros = data.registros.length
+    tamanhoPagina = data.tamanhoPagina
+    registrosTotais = data.registros
+
+    while (totalRegistros === tamanhoPagina) {
+      pagina++
+      console.log(`atenção consulta maior que ${tamanhoPagina}x Registros, totalRegistros:${totalRegistros}, página:${pagina}`)
+      await delay(EsperaEntreConsultas)
+      try {
+        const { data } = await apiFrota.post<retornoGeralProps>('/api/frotista/abastecimento/pesquisa', {
+          dataInicial,
+          dataFinal,
+          pagina
+        })
+        registrosTotais = registrosTotais.concat(data.registros)
+        totalRegistros = data.registros.length
+      } catch (error : any) {
+        console.log('abastecimento/pesquisa dentro while' + error.message)
+        console.log(error.message)
+        console.log(error.response.data)
+        await logDB({ obs: error.message })
+      }
+    }
+    return registrosTotais
+  } catch (error : any) {
+    console.log('abastecimento/pesquisa ' + error.message)
+    console.log(error.message)
+    console.log(error.response.data)
+    if (error.response.data.mensagens) {
+      await logDB({ obs: JSON.stringify(error.response.data.mensagens) })
+    } else {
+      await logDB({ obs: error.message })
+    }
+  }
+  return []
+}
+
 export async function abastecimentos (dataInicialDate: Date, dataFinalDate : Date) {
   const dataInicial = moment(dataInicialDate).utc().format('YYYY-MM-DDTHH:mm:ss')
   const dataFinal = moment(dataFinalDate).utc().format('YYYY-MM-DDTHH:mm:ss')
   await logDB({ obs: `abast. inicial:${dataInicial}, final:${dataFinal}` })
 
-  let pagina = 1
-  const { data } = await apiFrota.post<retornoGeralProps>('/api/frotista/abastecimento/pesquisa', {
-    dataInicial,
-    dataFinal,
-    pagina
-  })
+  const registrosTotais = await abastecimentosTotais(dataInicial, dataFinal)
+  if (registrosTotais.length === 0) return
+  if (!registrosTotais) return
 
-  let totalRegistros = data.registros.length
-  const tamanhoPagina = data.tamanhoPagina
-  let dadosTotais :registroProps[] = data.registros
-
-  while (totalRegistros === tamanhoPagina) {
-    pagina++
-    console.log(`atenção consulta maior que ${tamanhoPagina}x Registros, totalRegistros:${totalRegistros}, página:${pagina}`)
-    await delay(EsperaEntreConsultas)
-    const { data } = await apiFrota.post('/api/frotista/abastecimento/pesquisa', {
-      dataInicial,
-      dataFinal,
-      pagina
-    })
-    dadosTotais = dadosTotais.concat(data.registros)
-    totalRegistros = data.registros.length
-  }
+  // console.log(dadosTotais)
   // return res.json(dadosTotais)
 
-  const dadosFormatados = dadosTotais.map((item) => ({
+  const dadosFormatados = registrosTotais.map((item) => ({
     identificador: item.identificador,
     abastecimentoEstornado: item.abastecimentoEstornado,
     data: item.data,
@@ -153,6 +186,7 @@ export async function abastecimentos (dataInicialDate: Date, dataFinalDate : Dat
     pontoVenda_cnpj: item.pontoVenda.cnpj
   }))
 
+  // console.log('dadosFormatados', dadosFormatados)
   const retornoInsert = []
   if (dadosFormatados.length > 0) {
     retornoInsert.push(await insertOrUpdate(queryBuilder, 'profrotas_abastecimentos', dadosFormatados))
@@ -162,7 +196,7 @@ export async function abastecimentos (dataInicialDate: Date, dataFinalDate : Dat
 
   const dadosFormatadosItens = []
 
-  for (const abastecimento of data.registros) {
+  for (const abastecimento of registrosTotais) {
     for (const item of abastecimento.items) {
       dadosFormatadosItens.push({
         identificador: abastecimento.identificador,
@@ -177,19 +211,24 @@ export async function abastecimentos (dataInicialDate: Date, dataFinalDate : Dat
     }
   }
 
+  // console.log('dadosFormatadosItens', dadosFormatadosItens)
   if (dadosFormatadosItens.length > 0) {
     retornoInsert.push(await insertOrUpdate(queryBuilder, 'profrotas_abastecimentos_itens', dadosFormatadosItens))
   }
   await logDB({ obs: 'profrotas_abastecimentos_itens', qtdInserida: dadosFormatadosItens.length })
 
-  const pontoVendaCnpjPossiveis = [...new Set(data.registros.map((item: registroProps) => String(item.pontoVenda.cnpj)))]
+  const pontoVendaCnpjPossiveis = [...new Set(registrosTotais.map(item => String(item.pontoVenda.cnpj)))]
   const pontoVendaCnpjCadastrados = await queryBuilder('profrotas_ponto_venda').select(['cnpj']).whereIn('cnpj', pontoVendaCnpjPossiveis)
   const pontoVendaCnpjCadastradosArr = pontoVendaCnpjCadastrados.map(item => item.cnpj)
   const pontoVendaCnpjParaIncluir = pontoVendaCnpjPossiveis.filter(item => !pontoVendaCnpjCadastradosArr.includes(item))
   if (pontoVendaCnpjParaIncluir.length > 0) {
     const insertItens : pontoVendaProps[] = []
     for (const pontoVenda of pontoVendaCnpjParaIncluir) {
-      insertItens.push({ ...data.registros.find((item: registroProps) => String(item.pontoVenda.cnpj) === pontoVenda).pontoVenda })
+      if (registrosTotais.length > 0) {
+        const pontoVendaObj = registrosTotais.find(item => String(item.pontoVenda.cnpj) === pontoVenda)?.pontoVenda
+        if (pontoVendaObj) insertItens.push({ ...pontoVendaObj })
+        // insertItens.push({ ...registrosTotais.map(item => item.pontoVenda) })
+      }
     }
     const insertFormatadado = insertItens.map(item => ({
       cnpj: item.cnpj,
@@ -211,21 +250,4 @@ export async function abastecimentos (dataInicialDate: Date, dataFinalDate : Dat
   }
 
   return retornoInsert
-
-  // "pontoVenda": {
-  //   "cnpj": 20415295001901,
-  //   "razaoSocial": "Rede Dom Pedro De Postos Ltda.",
-  //   "postoInterno": false,
-  //   "endereco": {
-  //   "cep": 35540000,
-  //   "logradouro": "Rodovia Br 381",
-  //   "numero": 0,
-  //   "complemento": "611",
-  //   "bairro": "D.I.David Matar Ii",
-  //   "municipio": "Oliveira",
-  //   "uf": "MG",
-  //   "latitude": -20.68374634,
-  //   "longitude": -44.73849106
-  //   }
-  //   }
 }

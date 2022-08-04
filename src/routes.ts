@@ -9,6 +9,15 @@ import { insertVeiculos } from './insertVeiculos'
 import { insertOrUpdate, queryBuilder } from './utils/knex'
 const routes = Router()
 
+routes.get('/teste', async (req, res) => {
+  const { data } = await apiFrota.post('/api/frotista/abastecimento/pesquisa', {
+    dataInicial: '2022-01-25T09:00:00',
+    dataFinal: '2022-01-25T15:00:00',
+    pagina: '1'
+  })
+  res.json(data)
+})
+
 routes.get('/cota-veiculo/:placa', async (req, res) => { // não retornou nada.
   const placa = req.params.placa
   console.log(placa)
@@ -39,12 +48,6 @@ routes.get('/rota', async (req, res) => { // não consegui retornar nada
     console.log(error.response.data)
     res.json(error.response.data)
   }
-})
-
-routes.get('/teste', async (req, res) => {
-  const data = '2022-07-11T03:00:00.000+00:00'
-  const dataFormatada = moment(data).format('YY-MM-DD HH:mm')
-  res.send(dataFormatada)
 })
 
 export { routes }

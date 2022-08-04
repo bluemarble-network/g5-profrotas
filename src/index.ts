@@ -10,7 +10,7 @@ import { logDB } from './utils/knex'
 import moment from 'moment'
 import { abastecimentos } from './insertAbastecimentos'
 export const EsperaEntreConsultas = 1000 * 4 // 4 seg
-export const IntervaloConsulta = 1000 * 60 * 60 * 12 // 12 horas
+export const IntervaloConsulta = 1000 * 60 * 60 * 3 // 3 horas
 const app = express()
 app.use(cors())
 app.use(express.json({ limit: '50mb' }))
@@ -25,15 +25,15 @@ app.listen(port, async function () {
   await autentica(api)
   await autenticaFrota(apiFrota)
   // await setTokenFixo(apiFrota)
-  const dataAnterior = moment().subtract(24, 'hours').toDate()
-  const dataAgora = moment().toDate()
+  // const dataAnterior = moment().subtract(24, 'hours').toDate()
+  // const dataAgora = moment().toDate()
   // const dataAnterior = moment().subtract(2, 'months').toDate()
-  // const dataAnterior = moment('2021-11-01 00:00:00').toDate()
-  // const dataAgora = moment('2022-01-01 00:00:00').toDate()
+  // const dataAnterior = moment('2022-02-14 00:00:00').subtract(3, 'hours').toDate()
+  // const dataAgora = moment('2022-02-15 00:00:00').subtract(3, 'hours').toDate()
 
   // console.log(dataAnterior)
   // console.log(dataAgora)
-  await abastecimentos(dataAnterior, dataAgora)
+  // await abastecimentos(dataAnterior, dataAgora)
 })
 
 setInterval(async () => {
