@@ -9,8 +9,10 @@ import { autentica } from './api/autentica'
 import { logDB } from './utils/knex'
 import moment from 'moment'
 import { abastecimentos } from './insertAbastecimentos'
+import { consultaInsereVeiculos } from './insertVeiculos'
 export const EsperaEntreConsultas = 1000 * 4 // 4 seg
 export const IntervaloConsulta = 1000 * 60 * 60 * 3 // 3 horas
+export const IntervaloConsultaVeiculos = 1000 * 60 * 60 * 24 // 24 horas
 const app = express()
 app.use(cors())
 app.use(express.json({ limit: '50mb' }))
@@ -43,3 +45,9 @@ setInterval(async () => {
   await abastecimentos(data24horasAtras, dataAgora)
   console.log(IntervaloConsulta)
 }, IntervaloConsulta)
+
+setInterval(async () => {
+  await logDB({ obs: 'IntervaloConsultaVeiculos' })
+  await consultaInsereVeiculos()
+  console.log(IntervaloConsultaVeiculos)
+}, IntervaloConsultaVeiculos)

@@ -12,8 +12,20 @@ const TiposCombustivel : Record<number, string> = {
 
 export async function insertVeiculos (req: Request, res: Response): Promise<Response> {
   try {
+    return res.json(consultaInsereVeiculos())
+  } catch (error: any) {
+    console.log(error.code)
+    console.log(error.message)
+    console.log(error.response.data)
+    return res.json(error.response.data)
+  }
+}
+
+export async function consultaInsereVeiculos () {
+  try {
     const { data } = await apiFrota.post('/api/frotista/veiculo/pesquisa', {})
 
+    // console.log(data)
     const dadosFormatados = data.registros.map((item:any) => ({
       identificador: item.identificador,
       placa: item.placa,
@@ -31,13 +43,11 @@ export async function insertVeiculos (req: Request, res: Response): Promise<Resp
       tipoVeiculo: item.tipo.valor,
       subtipoVeiculo: item.subtipo.valor
     }))
-    const retornoInsert = await insertOrUpdate(queryBuilder, 'profrotas_veiculos', dadosFormatados)
-
-    return res.json(retornoInsert)
+    return await insertOrUpdate(queryBuilder, 'profrotas_veiculos', dadosFormatados)
   } catch (error: any) {
     console.log(error.code)
     console.log(error.message)
     console.log(error.response.data)
-    return res.json(error.response.data)
   }
+  return null
 }
