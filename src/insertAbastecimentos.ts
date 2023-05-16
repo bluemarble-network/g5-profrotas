@@ -1,11 +1,12 @@
 import { Request, Response } from 'express'
 import moment from 'moment'
-import { EsperaEntreConsultas } from '.'
 import { apiFrota } from './api/axios'
 import { insertOrUpdate, logDB, queryBuilder } from './utils/knex'
 import { delay, sendTelegram } from './utils/utils'
+import { EsperaEntreConsultas } from '.'
+import { trataErro } from './utils/trataErro'
 
-export async function insertAbastecimentos (req: Request, res: Response): Promise<Response> {
+export async function insertAbastecimentos(req: Request, res: Response): Promise<Response> {
   // período entre às duas não deve ser maior 2 meses
   // const dataInicial = '2022-04-01T00:00:00'
   // const dataFinal = '2022-05-01T00:00:00'
@@ -29,7 +30,7 @@ export async function insertAbastecimentos (req: Request, res: Response): Promis
 interface itemsProps {
   identificador: string
   nome: string
-  tipo: { codigo:number, valor:string}
+  tipo: { codigo: number; valor: string }
   quantidade: number
   valorUnitario: number
   valorTotal: number
@@ -38,14 +39,14 @@ interface itemsProps {
 interface veiculoProps {
   identificador: number
   placa: string
-  tipo: { codigo:number, valor:string}
-  subtipo: { codigo:number, valor:string}
+  tipo: { codigo: number; valor: string }
+  subtipo: { codigo: number; valor: string }
   marca: string
   modelo: string
   anoModelo: number
   anoFabricao: number
   agregado: boolean
-  unidade:string
+  unidade: string
   grupoOperacional: string
   empresaAgregada: string
 }
@@ -72,7 +73,7 @@ interface registroProps {
   dataTransacao: string
   statusAutorizacao: number
   motivoRecusa: string
-  motivoCancelamento: null,
+  motivoCancelamento: null
   hodometro: number
   horimetro: number
   frota: frotaProps
@@ -96,18 +97,18 @@ interface pontoVendaProps {
   postoInterno: boolean
   endereco: {
     cep: number
-    logradouro:string
+    logradouro: string
     numero: number
-    complemento:string
-    bairro:string
-    municipio:string
-    uf:string
+    complemento: string
+    bairro: string
+    municipio: string
+    uf: string
     latitude: number
-    longitude:number
+    longitude: number
   }
 }
 
-export async function abastecimentosTotais (dataInicial:string, dataFinal:string) {
+export async function abastecimentosTotais(dataInicial: string, dataFinal: string) {
   let pagina = 1
   let totalRegistros = 0
   let tamanhoPagina = 0
@@ -137,7 +138,8 @@ export async function abastecimentosTotais (dataInicial:string, dataFinal:string
         })
         registrosTotais = registrosTotais.concat(data.registros)
         totalRegistros = data.registros.length
-      } catch (error : any) {
+      } catch (error: any) {
+        await trataErro('abastecimento/pesquisa dentro while', error)
         console.log('abastecimento/pesquisa dentro while' + error.message)
         console.log(error.message)
         console.log(error.response.data)
@@ -145,7 +147,8 @@ export async function abastecimentosTotais (dataInicial:string, dataFinal:string
       }
     }
     return registrosTotais
-  } catch (error : any) {
+  } catch (error: any) {
+    await trataErro('abastecimento/pesquisa', error)
     console.log('abastecimento/pesquisa ' + error.message)
     console.log(error.message)
     console.log(error.response.data)
@@ -158,7 +161,7 @@ export async function abastecimentosTotais (dataInicial:string, dataFinal:string
   return []
 }
 
-export async function abastecimentos (dataInicialDate: Date, dataFinalDate : Date) {
+export async function abastecimentos(dataInicialDate: Date, dataFinalDate: Date) {
   const dataInicial = moment(dataInicialDate).utc().format('YYYY-MM-DDTHH:mm:ss')
   const dataFinal = moment(dataFinalDate).utc().format('YYYY-MM-DDTHH:mm:ss')
   await logDB({ obs: `abast. inicial:${dataInicial}, final:${dataFinal}` })
@@ -217,20 +220,20 @@ export async function abastecimentos (dataInicialDate: Date, dataFinalDate : Dat
   }
   await logDB({ obs: 'profrotas_abastecimentos_itens', qtdInserida: dadosFormatadosItens.length })
 
-  const pontoVendaCnpjPossiveis = [...new Set(registrosTotais.map(item => String(item.pontoVenda.cnpj)))]
+  const pontoVendaCnpjPossiveis = [...new Set(registrosTotais.map((item) => String(item.pontoVenda.cnpj)))]
   const pontoVendaCnpjCadastrados = await queryBuilder('profrotas_ponto_venda').select(['cnpj']).whereIn('cnpj', pontoVendaCnpjPossiveis)
-  const pontoVendaCnpjCadastradosArr = pontoVendaCnpjCadastrados.map(item => item.cnpj)
-  const pontoVendaCnpjParaIncluir = pontoVendaCnpjPossiveis.filter(item => !pontoVendaCnpjCadastradosArr.includes(item))
+  const pontoVendaCnpjCadastradosArr = pontoVendaCnpjCadastrados.map((item) => item.cnpj)
+  const pontoVendaCnpjParaIncluir = pontoVendaCnpjPossiveis.filter((item) => !pontoVendaCnpjCadastradosArr.includes(item))
   if (pontoVendaCnpjParaIncluir.length > 0) {
-    const insertItens : pontoVendaProps[] = []
+    const insertItens: pontoVendaProps[] = []
     for (const pontoVenda of pontoVendaCnpjParaIncluir) {
       if (registrosTotais.length > 0) {
-        const pontoVendaObj = registrosTotais.find(item => String(item.pontoVenda.cnpj) === pontoVenda)?.pontoVenda
+        const pontoVendaObj = registrosTotais.find((item) => String(item.pontoVenda.cnpj) === pontoVenda)?.pontoVenda
         if (pontoVendaObj) insertItens.push({ ...pontoVendaObj })
         // insertItens.push({ ...registrosTotais.map(item => item.pontoVenda) })
       }
     }
-    const insertFormatadado = insertItens.map(item => ({
+    const insertFormatadado = insertItens.map((item) => ({
       cnpj: item.cnpj,
       razaoSocial: item.razaoSocial,
       postoInterno: item.postoInterno,
