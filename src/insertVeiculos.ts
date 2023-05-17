@@ -16,9 +16,6 @@ export async function insertVeiculos(req: Request, res: Response): Promise<Respo
     return res.json(consultaInsereVeiculos())
   } catch (error: any) {
     await trataErro('insertVeiculos', error)
-    console.log(error.code)
-    console.log(error.message)
-    console.log(error.response.data)
     return res.json(error.response.data)
   }
 }
@@ -48,11 +45,6 @@ export async function consultaInsereVeiculos() {
     return await insertOrUpdate(queryBuilder, 'profrotas_veiculos', dadosFormatados)
   } catch (error: any) {
     await trataErro('consultaInsereVeiculos', error)
-    console.log(error.code)
-    console.log(error.message)
-    console.log(error.response.data)
-    console.log(error.response.data.mensagens)
-    console.log(error.response.data.mensagens[0])
   }
   return null
 }

@@ -140,23 +140,11 @@ export async function abastecimentosTotais(dataInicial: string, dataFinal: strin
         totalRegistros = data.registros.length
       } catch (error: any) {
         await trataErro('abastecimento/pesquisa dentro while', error)
-        console.log('abastecimento/pesquisa dentro while' + error.message)
-        console.log(error.message)
-        console.log(error.response.data)
-        await logDB({ obs: error.message })
       }
     }
     return registrosTotais
   } catch (error: any) {
     await trataErro('abastecimento/pesquisa', error)
-    console.log('abastecimento/pesquisa ' + error.message)
-    console.log(error.message)
-    console.log(error.response.data)
-    if (error.response.data.mensagens) {
-      await logDB({ obs: JSON.stringify(error.response.data.mensagens) })
-    } else {
-      await logDB({ obs: error.message })
-    }
   }
   return []
 }

@@ -1,5 +1,6 @@
 import axios from 'axios'
 import moment from 'moment'
+import { logDB } from './knex'
 
 export async function delay(tempo_ms: number) {
   await new Promise((resolve) => setTimeout(resolve, tempo_ms))
@@ -14,7 +15,8 @@ export async function sendTelegram(text: string) {
       parse_mode: 'html'
     }
     await axios.post(`https://api.telegram.org/${botToken}/sendMessage`, body)
-  } catch (error) {
+  } catch (error: any) {
+    await logDB({ obs: `catch telegram, ${error.message}` })
     console.log('erro telegram!', error)
     console.log('texto telegram:', text)
   }

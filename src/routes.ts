@@ -11,7 +11,20 @@ import { delay } from './utils/utils'
 import { EsperaEntreConsultas } from '.'
 const routes = Router()
 
-routes.get('/abastecimentosRetroativos/:mes/:diaIni/:diaFim', async (req, res) => {
+routes.get('/abastecimentosRetroativosMensal/:mes', async (req, res) => {
+  const mes = Number(req.params.mes) - 1
+
+  const dataInicial = moment([2023, mes, 1]).toDate()
+  const dataFinal = moment([2023, mes, 1]).add(1, 'month').toDate()
+  console.log('inicio mensal', moment(dataInicial).format('YYYY-MM-DD'), moment(dataFinal).format('YYYY-MM-DD'))
+  const retornoInsert = await abastecimentos(dataInicial, dataFinal)
+  console.log('retornoInsert', retornoInsert)
+  console.log('fim mensal')
+
+  res.json({ retornoInsert })
+})
+
+routes.get('/abastecimentosRetroativosDiarios/:mes/:diaIni/:diaFim', async (req, res) => {
   const mes = Number(req.params.mes) - 1
   const diaIni = Number(req.params.diaIni)
   const diaFim = Number(req.params.diaFim)
