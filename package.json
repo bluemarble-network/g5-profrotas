@@ -6,10 +6,12 @@
   "scripts": {
     "build": "swc src -d dist",
     "build-dev": "yarn build && node dist/index.js",
-    "dev": "nodemon --ext ts --exec \"yarn build-dev\"",
+    "dev": "tsx watch ./src/index.ts",
+    "dev3": "nodemon --ext ts --exec \"yarn build-dev\"",
     "start": "yarn build && NODE_ENV=production node dist/index.js",
     "dev2": "ts-node-dev  ./src/index.ts",
-    "build2": "tsc --build"
+    "build2": "tsc --build",
+    "pre_push": "yarn build && git add ."
   },
   "dependencies": {
     "axios": "^1.4.0",
